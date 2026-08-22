@@ -609,36 +609,36 @@
     return 'Lluna minvant';
   }
 
-  function pathLluna(r, fase){
-    // fase 0..1, 0=nova, 0.5=plena — retorna la part il·luminada
+  // ===== FUNCIÓ CORREGIDA PER DIBUIXAR LA FASE LUNAR DE MANERA CONTÍNUA =====
+  function pathLluna(r, fase) {
+    // fase: 0 = nova, 0.5 = plena, 1 = nova següent
     const theta = fase * 2 * Math.PI;
-    const rx = r * Math.cos(theta);
-    const sweepOuter = fase < 0.5 ? 1 : 0;
-    const sweepInner = fase < 0.5 ? 0 : 1;
-    return `M 0,${-r} A ${r},${r} 0 0,${sweepOuter} 0,${r} A ${Math.abs(rx).toFixed(2)},${r} 0 0,${sweepInner} 0,${-r} Z`;
-  }
+    const sinT = Math.sin(theta);
+    const cosT = Math.cos(theta);
+    const a = r * Math.abs(sinT);   // radi horitzontal del terminador (sempre positiu)
 
-  // Fronteres reals (dia de l'any, no bisest) de cada signe zodiacal i de cada mes,
-  // per evitar l'error de repartir-los en trams uniformes de 30.4 dies.
-  const fronteresZodiac = [80,110,141,172,204,235,266,296,326,356,385,415,445];
-  function angleZodiacActual(doy){
-    let doyAdj = doy < 80 ? doy + 365 : doy;
-    let i = 11;
-    for (let k=0;k<12;k++){
-      if (doyAdj >= fronteresZodiac[k] && doyAdj < fronteresZodiac[k+1]){ i = k; break; }
+    // Casos extrems: si el sinus és pràcticament zero, lluna nova o plena
+    if (Math.abs(sinT) < 1e-6) {
+      if (fase < 0.001 || fase > 0.999) {
+        return '';   // lluna nova: no es dibuixa res
+      }
+      if (Math.abs(fase - 0.5) < 0.001) {
+        // lluna plena: cercle complet
+        return `M 0,${-r} A ${r},${r} 0 1,1 0,${r} A ${r},${r} 0 1,1 0,${-r} Z`;
+      }
     }
-    const fraccio = (doyAdj - fronteresZodiac[i]) / (fronteresZodiac[i+1] - fronteresZodiac[i]);
-    return (i - 0.5 + fraccio) * 30;
-  }
 
-  const fronteresMes = [1,32,60,91,121,152,182,213,244,274,305,335,366];
-  function angleMesActual(doy){
-    let m = 11;
-    for (let k=0;k<12;k++){
-      if (doy >= fronteresMes[k] && doy < fronteresMes[k+1]){ m = k; break; }
+    if (fase < 0.5) {
+      // Creixent (il·luminació a la dreta)
+      // Arc exterior: semicercle dret (sweep=1)
+      // Arc interior: meitat esquerra de l'el·lipse (sweep=0)
+      return `M 0,${-r} A ${r},${r} 0 0,1 0,${r} A ${a},${r} 0 0,0 0,${-r} Z`;
+    } else {
+      // Minvant (il·luminació a l'esquerra)
+      // Arc exterior: semicercle esquerre (sweep=0)
+      // Arc interior: meitat dreta de l'el·lipse (sweep=1)
+      return `M 0,${-r} A ${r},${r} 0 0,0 0,${r} A ${a},${r} 0 0,1 0,${-r} Z`;
     }
-    const fraccio = (doy - fronteresMes[m]) / (fronteresMes[m+1] - fronteresMes[m]);
-    return (m - 0.5 + fraccio) * 30;
   }
 
   let zodiacActualitzat = false;
@@ -683,6 +683,7 @@
 
     const fase = faseLunar(ara);
     document.getElementById('lecturaLluna').textContent = nomFaseLunar(fase);
+    // Actualitzem les dues representacions de la lluna (la gran i la petita de la busca)
     lunaLit.setAttribute('d', pathLluna(12, fase));
     lunaGranLit.setAttribute('d', pathLluna(165, fase));
 
@@ -709,6 +710,28 @@
       diaSetmanaText.textContent = abrevSetmana[ara.getDay()];
       calendariActualitzat = true;
     }
+  }
+
+  // Funcions auxiliars per als angles del zodíac i el calendari (no cal modificar-les)
+  const fronteresZodiac = [80,110,141,172,204,235,266,296,326,356,385,415,445];
+  function angleZodiacActual(doy){
+    let doyAdj = doy < 80 ? doy + 365 : doy;
+    let i = 11;
+    for (let k=0;k<12;k++){
+      if (doyAdj >= fronteresZodiac[k] && doyAdj < fronteresZodiac[k+1]){ i = k; break; }
+    }
+    const fraccio = (doyAdj - fronteresZodiac[i]) / (fronteresZodiac[i+1] - fronteresZodiac[i]);
+    return (i - 0.5 + fraccio) * 30;
+  }
+
+  const fronteresMes = [1,32,60,91,121,152,182,213,244,274,305,335,366];
+  function angleMesActual(doy){
+    let m = 11;
+    for (let k=0;k<12;k++){
+      if (doy >= fronteresMes[k] && doy < fronteresMes[k+1]){ m = k; break; }
+    }
+    const fraccio = (doy - fronteresMes[m]) / (fronteresMes[m+1] - fronteresMes[m]);
+    return (m - 0.5 + fraccio) * 30;
   }
 
   actualitza();
