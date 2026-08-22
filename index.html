@@ -588,27 +588,21 @@
     }).join('');
   }
 
-  // ===== FUNCIÓ FASE LUNAR CORREGIDA (UTILITZA UTC) =====
+  // ===== FUNCIÓ FASE LUNAR DEFINITIVA (fiable per a qualsevol data) =====
   function faseLunar(d) {
-    // Obtenim la data en UTC per evitar problemes de fus horari
-    const any = d.getUTCFullYear();
-    const mes = d.getUTCMonth() + 1; // 1-12
-    const dia = d.getUTCDate() + (d.getUTCHours() + d.getUTCMinutes()/60 + d.getUTCSeconds()/3600) / 24;
-    // Dia julià (fórmula de Meeus)
-    let a = Math.floor((14 - mes) / 12);
-    let y = any + 4800 - a;
-    let m = mes + 12 * a - 3;
-    let jd = dia + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) - 32045;
-    // Segles des de J2000
-    let T = (jd - 2451545.0) / 36525;
-    // Elongació mitjana de la Lluna (graus)
-    let D = 297.8501921 + 445267.1114034 * T - 0.0018819 * T * T + (1.0 / 545868.0) * T * T * T - (1.0 / 113065000.0) * T * T * T * T;
+    // Dia julià a partir de l'època Unix (1970-01-01T00:00:00Z)
+    const ms = d.getTime(); // mil·lisegons des de 1970-01-01T00:00:00Z
+    const jd = ms / 86400000 + 2440587.5;
+    const T = (jd - 2451545.0) / 36525;
+    // Elongació mitjana de la Lluna (Meeus)
+    let D = 297.8501921 + 445267.1114034 * T - 0.0018819 * T * T + (1.0/545868.0) * T * T * T - (1.0/113065000.0) * T * T * T * T;
     D = D % 360;
     if (D < 0) D += 360;
     let fase = D / 360;
-    // Normalitzem a [0,1)
     fase = fase % 1;
     if (fase < 0) fase += 1;
+    // Per depurar (mostra a la consola)
+    console.log('Fase lunar calculada:', fase, 'JD:', jd, 'T:', T, 'D:', D);
     return fase;
   }
 
@@ -623,17 +617,17 @@
     return 'Lluna minvant';
   }
 
-  // ===== FUNCIÓ PER DIBUIXAR LA FASE LUNAR (CORREGIDA PER A TOTS ELS CASOS) =====
+  // ===== FUNCIÓ PER DIBUIXAR LA FASE LUNAR (segura) =====
   function pathLluna(r, fase) {
     const theta = fase * 2 * Math.PI;
     const sinT = Math.sin(theta);
     const a = r * Math.abs(sinT);
 
-    // Si el sinus és pràcticament zero, és lluna nova o plena
+    // Casos extrems
     if (Math.abs(sinT) < 1e-6) {
       if (fase < 0.001 || fase > 0.999) {
-        // Lluna nova: retornem un cercle de radi 0 (no es veu) o bé un path buit
-        return '';   // no es dibuixa res
+        // Lluna nova: no dibuixem res
+        return '';
       }
       if (Math.abs(fase - 0.5) < 0.001) {
         // Lluna plena: cercle complet
@@ -641,12 +635,20 @@
       }
     }
 
-    // Per a qualsevol altra fase, dibuixem la mitja lluna corresponent
+    // Si la fase és molt petita però no zero, mostrem una mitja lluna molt prima
+    if (fase < 0.02) {
+      // Per evitar que quedi buit, dibuixem una franja molt prima
+      return `M 0,${-r} A ${r},${r} 0 0,1 0,${r} A ${r*0.01},${r} 0 0,0 0,${-r} Z`;
+    }
+    if (fase > 0.98) {
+      return `M 0,${-r} A ${r},${r} 0 0,0 0,${r} A ${r*0.01},${r} 0 0,1 0,${-r} Z`;
+    }
+
     if (fase < 0.5) {
-      // Creixent: il·luminació a la dreta
+      // Creixent (dreta il·luminada)
       return `M 0,${-r} A ${r},${r} 0 0,1 0,${r} A ${a},${r} 0 0,0 0,${-r} Z`;
     } else {
-      // Minvant: il·luminació a l'esquerra
+      // Minvant (esquerra il·luminada)
       return `M 0,${-r} A ${r},${r} 0 0,0 0,${r} A ${a},${r} 0 0,1 0,${-r} Z`;
     }
   }
@@ -691,7 +693,6 @@
     document.getElementById('lecturaData').textContent = `${diaCap}, ${diaMes} de ${mes} de ${any}`;
 
     const fase = faseLunar(ara);
-    console.log('Fase lunar actual:', fase); // Per depurar
     document.getElementById('lecturaLluna').textContent = nomFaseLunar(fase);
     lunaLit.setAttribute('d', pathLluna(12, fase));
     lunaGranLit.setAttribute('d', pathLluna(165, fase));
