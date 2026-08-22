@@ -588,14 +588,30 @@
     }).join('');
   }
 
-  function faseLunar(d){
-    // Referència: lluna nova coneguda 2000-01-06 18:14 UTC
-    const refNouLluna = Date.UTC(2000,0,6,18,14,0);
-    const sinodic = 29.530588853;
-    const dies = (d.getTime() - refNouLluna) / 86400000;
-    let fase = (dies % sinodic) / sinodic;
+  // ===== NOVA FUNCIÓ DE FASE LUNAR (MÉS PRECISA) =====
+  function faseLunar(d) {
+    // Converteix la data a dia julià (JD)
+    const year = d.getFullYear();
+    const month = d.getMonth() + 1;  // 1-12
+    const day = d.getDate() + (d.getHours() + d.getMinutes()/60 + d.getSeconds()/3600) / 24;
+
+    const a = Math.floor((14 - month) / 12);
+    const y = year + 4800 - a;
+    const m = month + 12 * a - 3;
+    let jd = day + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) - 32045;
+
+    // Segles des de J2000
+    const T = (jd - 2451545.0) / 36525;
+    // Elongació mitjana de la Lluna (en graus), que dona la fase (0 = lluna nova)
+    let D = 297.8501921 + 445267.1114034 * T - 0.0018819 * T * T + (1.0/545868.0) * T * T * T;
+    D = D % 360;
+    if (D < 0) D += 360;
+    // La fase és D/360, però D és l'elongació des del punt de referència.
+    // Per a lluna nova, D = 0; per a plena, D = 180; per a quart creixent, D = 90, etc.
+    // Per tant, la fase = (D/360) % 1
+    let fase = (D / 360) % 1;
     if (fase < 0) fase += 1;
-    return fase; // 0=nova, 0.5=plena
+    return fase;
   }
 
   function nomFaseLunar(fase){
@@ -609,19 +625,14 @@
     return 'Lluna minvant';
   }
 
-  // ===== FUNCIÓ CORREGIDA PER DIBUIXAR LA FASE LUNAR DE MANERA CONTÍNUA =====
+  // ===== FUNCIÓ PER DIBUIXAR LA FASE LUNAR =====
   function pathLluna(r, fase) {
-    // fase: 0 = nova, 0.5 = plena, 1 = nova següent
     const theta = fase * 2 * Math.PI;
     const sinT = Math.sin(theta);
-    const cosT = Math.cos(theta);
-    const a = r * Math.abs(sinT);   // radi horitzontal del terminador (sempre positiu)
+    const a = r * Math.abs(sinT);   // radi horitzontal del terminador
 
-    // Casos extrems: si el sinus és pràcticament zero, lluna nova o plena
     if (Math.abs(sinT) < 1e-6) {
-      if (fase < 0.001 || fase > 0.999) {
-        return '';   // lluna nova: no es dibuixa res
-      }
+      if (fase < 0.001 || fase > 0.999) return '';   // lluna nova
       if (Math.abs(fase - 0.5) < 0.001) {
         // lluna plena: cercle complet
         return `M 0,${-r} A ${r},${r} 0 1,1 0,${r} A ${r},${r} 0 1,1 0,${-r} Z`;
@@ -629,14 +640,10 @@
     }
 
     if (fase < 0.5) {
-      // Creixent (il·luminació a la dreta)
-      // Arc exterior: semicercle dret (sweep=1)
-      // Arc interior: meitat esquerra de l'el·lipse (sweep=0)
+      // Creixent: il·luminació a la dreta
       return `M 0,${-r} A ${r},${r} 0 0,1 0,${r} A ${a},${r} 0 0,0 0,${-r} Z`;
     } else {
-      // Minvant (il·luminació a l'esquerra)
-      // Arc exterior: semicercle esquerre (sweep=0)
-      // Arc interior: meitat dreta de l'el·lipse (sweep=1)
+      // Minvant: il·luminació a l'esquerra
       return `M 0,${-r} A ${r},${r} 0 0,0 0,${r} A ${a},${r} 0 0,1 0,${-r} Z`;
     }
   }
@@ -664,7 +671,6 @@
 
     busquaSegon.setAttribute('transform', `rotate(${angSegon}, ${CX}, ${CY})`);
 
-    // Perla 24h: cavalca la vora exterior del rellotge, l'anell antic té el "24" (=0h) a dalt i avança 15° per hora
     const ang24 = (ara.getHours() + m/60 + s/3600) * 15;
     document.getElementById('perla24').setAttribute('transform',
       `translate(${polarX(CX,294,ang24)}, ${polarY(CY,294,ang24)})`);
@@ -683,7 +689,6 @@
 
     const fase = faseLunar(ara);
     document.getElementById('lecturaLluna').textContent = nomFaseLunar(fase);
-    // Actualitzem les dues representacions de la lluna (la gran i la petita de la busca)
     lunaLit.setAttribute('d', pathLluna(12, fase));
     lunaGranLit.setAttribute('d', pathLluna(165, fase));
 
@@ -712,7 +717,7 @@
     }
   }
 
-  // Funcions auxiliars per als angles del zodíac i el calendari (no cal modificar-les)
+  // Funcions auxiliars per als angles del zodíac i el calendari
   const fronteresZodiac = [80,110,141,172,204,235,266,296,326,356,385,415,445];
   function angleZodiacActual(doy){
     let doyAdj = doy < 80 ? doy + 365 : doy;
