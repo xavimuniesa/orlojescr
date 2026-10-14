@@ -3151,7 +3151,9 @@ window.ORLOJ_CONFIG = {"selectorTitol": ".banderolaTitol", "textDaurat": "clar",
     }
     arrel.addEventListener('pointerup', acabaL);
     arrel.addEventListener('pointercancel', () => { ini = null; posaL(0, true); });
-    arrel.addEventListener('lostpointercapture', () => { if (ini && ini.h){ ini = null; posaL(0, true); } });
+    // En tàctil el dit ja és capturat per l'element tocat; quan el panell el pren, el
+    // lostpointercapture d'aquell fill puja fins aquí i no s'ha de confondre amb una pèrdua real.
+    arrel.addEventListener('lostpointercapture', e => { if (e.target !== arrel) return; if (ini && ini.h){ ini = null; posaL(0, true); } });
     arrel.addEventListener('wheel', e => {
       if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) || Math.abs(e.deltaX) < 15) return;
       e.preventDefault(); e.stopPropagation();
@@ -3320,7 +3322,7 @@ window.ORLOJ_CONFIG = {"selectorTitol": ".banderolaTitol", "textDaurat": "clar",
       ini = null; arr = false;
     });
     finestra.addEventListener('pointercancel', () => { if (arr) posaC(0, true); ini = null; arr = false; });
-    finestra.addEventListener('lostpointercapture', () => { if (arr){ posaC(0, true); ini = null; arr = false; } });
+    finestra.addEventListener('lostpointercapture', e => { if (e.target !== finestra) return; if (arr){ posaC(0, true); ini = null; arr = false; } });
     const estatC = { ultim: 0 };
     finestra.addEventListener('wheel', e => {
       if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) || Math.abs(e.deltaX) < 15) return;
