@@ -729,6 +729,10 @@
   .sl-col .sl-nota{ text-align:center; }
   .sl-nom{ font-family:'Cinzel', serif; font-weight:700; font-size: var(--f-etq); letter-spacing:.1em; text-transform:uppercase; color: var(--tinta2); text-align:center; }
   .t-titol-2{ margin-top: calc(14px * var(--k)); }
+
+  /* Mentre una esfera gira, la meitat que s'acosta sobresurt uns píxels de la
+     pàgina; sense això el navegador hi posa una barra de desplaçament efímera. */
+  html:has(.girant), html:has(.girant) body{ overflow:hidden; }
 </style>
 <link rel="manifest" href="orloj.webmanifest">
 <link rel="apple-touch-icon" href="orloj-icona-180.png">
@@ -2096,8 +2100,10 @@ window.ORLOJ_CONFIG = {"selectorTitol": ".banderolaTitol", "textDaurat": "clar",
   const calendariFlipEl = document.getElementById('calendariFlip');
   let girEnCurs = false;
   if (calendariFlipEl){
-    calendariFlipEl.addEventListener('animationend', () => {
+    calendariFlipEl.addEventListener('animationend', e => {
+      if (e.target !== calendariFlipEl) return;
       girEnCurs = false;
+      calendariFlipEl.classList.remove('girant');
     });
   }
 
@@ -2140,7 +2146,8 @@ window.ORLOJ_CONFIG = {"selectorTitol": ".banderolaTitol", "textDaurat": "clar",
   const astrolabiFlipEl = document.getElementById('astrolabiFlip');
   let girEnCursAst = false;
   if (astrolabiFlipEl){
-    astrolabiFlipEl.addEventListener('animationend', () => {
+    astrolabiFlipEl.addEventListener('animationend', e => {
+      if (e.target !== astrolabiFlipEl) return;
       girEnCursAst = false;
       astrolabiFlipEl.classList.remove('girant');
     });
