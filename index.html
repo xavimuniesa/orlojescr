@@ -1014,55 +1014,49 @@ window.ORLOJ_CONFIG = {"selectorTitol": ".banderolaTitol", "textDaurat": "clar",
     return 'M' + punts.join('L') + 'Z';
   }
 
-  // ==================== El cos del cilindre amb volum ====================
-  (function generaVolumCilindre(){
-    const contenidor = document.getElementById('cosCilindre');
+  // ==================== El gruix de les esferes ====================
+  // Abans eren 24 discs daurats apilats per esfera (48 capes de la mida de
+  // l'esfera). A escriptori, amb esferes grans i pantalla Retina, això
+  // esgotava la memòria gràfica del navegador i en girar deixava el fons en
+  // blanc i les cares buides. Ara: un sol disc al mig (per l'interior) i una
+  // vora feta de tires estretes al voltant, que ocupen molt poca memòria.
+  function generaGruix(contenidor, classeDisc, gruix){
     if (!contenidor) return;
-
-    const totalCapes = 24;
-    const gruixTotal = 28;
-
-    for (let i = 0; i < totalCapes; i++) {
-      const capa = document.createElement('div');
-      capa.className = 'capa-volum';
-
-      const zPos = -gruixTotal/2 + (i * (gruixTotal / (totalCapes - 1)));
-
-      capa.style.position = 'absolute';
-      capa.style.inset = '0';
-      capa.style.borderRadius = '50%';
-      capa.style.transform = `translateZ(${zPos.toFixed(2)}px)`;
-
-      contenidor.appendChild(capa);
+    const N = 72, medieval = document.body.classList.contains('orloj-medieval');
+    const disc = document.createElement('div');
+    disc.className = classeDisc;
+    Object.assign(disc.style, { position:'absolute', inset:'0', borderRadius:'50%', transform:'translateZ(0px)' });
+    contenidor.appendChild(disc);
+    const tires = [];
+    for (let k = 0; k < N; k++){
+      const a = k * 360 / N, t = document.createElement('div');
+      // llum des de dalt a l'esquerra, com el reflex de les cares
+      const llum = Math.max(0, Math.cos((a - (-35)) * Math.PI / 180));
+      const f = 0.35 + 0.65 * llum;
+      const c = (x0, x1) => Math.round(x0 + (x1 - x0) * f);
+      const col = `rgb(${c(90,246)},${c(62,206)},${c(6,110)})`, fosc = `rgb(${c(50,150)},${c(34,110)},${c(3,20)})`;
+      const ombra = `linear-gradient(to bottom, ${fosc}, ${col} 45%, ${col} 55%, ${fosc})`;
+      Object.assign(t.style, { position:'absolute', left:'50%', top:'50%', height: gruix + 'px',
+        backfaceVisibility:'visible', pointerEvents:'none',
+        background: medieval ? `linear-gradient(to bottom, rgba(0,0,0,${(0.55 - 0.4*f).toFixed(2)}), rgba(0,0,0,${(0.35 - 0.3*f).toFixed(2)})), var(--textura-patina) ${(k*7)%100}% 50% / 900% 900%` : ombra });
+      contenidor.appendChild(t); tires.push([t, a]);
     }
-  })();
-
-  // ==================== El cos del cilindre de l'esfera interior (astrolabi) ====================
-  (function generaVolumCilindreAstrolabi(){
-    const contenidor = document.getElementById('cosCilindreAst');
-    if (!contenidor) return;
-
-    const totalCapes = 24;
-    // Una mica menys que la profunditat de les cares (14px), per evitar que
-    // la capa més externa de la pila coincideixi exactament amb la cara
-    // frontal (conflicte de renderització "z-fighting" que feia que el
-    // daurat es filtrés per les zones transparents fins i tot en repòs).
-    const gruixTotal = 25.2;
-
-    for (let i = 0; i < totalCapes; i++) {
-      const capa = document.createElement('div');
-      capa.className = 'capa-volum-ast';
-
-      const zPos = -gruixTotal/2 + (i * (gruixTotal / (totalCapes - 1)));
-
-      capa.style.position = 'absolute';
-      capa.style.inset = '0';
-      capa.style.borderRadius = '50%';
-      capa.style.transform = `translateZ(${zPos.toFixed(2)}px)`;
-
-      contenidor.appendChild(capa);
+    function situa(){
+      const R = contenidor.clientWidth / 2;
+      if (!R) return;
+      const w = (2 * R * Math.sin(Math.PI / N) + 1.5).toFixed(2);
+      tires.forEach(([t, a]) => {
+        t.style.width = w + 'px';
+        t.style.marginLeft = (-w / 2) + 'px'; t.style.marginTop = (-gruix / 2) + 'px';
+        t.style.transform = `rotateZ(${a}deg) translateY(${(-R + 0.5).toFixed(2)}px) rotateX(90deg)`;
+      });
     }
-  })();
+    situa();
+    if (window.ResizeObserver) new ResizeObserver(situa).observe(contenidor);
+    else window.addEventListener('resize', situa);
+  }
+  generaGruix(document.getElementById('cosCilindre'), 'capa-volum', 28);
+  generaGruix(document.getElementById('cosCilindreAst'), 'capa-volum-ast', 25.2);
 
   // Fletxa/punxa de relleu (inspirada en una punta de tanca de ferro forjat), amb la punta a l'origen (0,0)
   const fletxaFerroPath = "M 0,0 L -4.5,-13 C -4.5,-16 -3,-17 -2,-18 C -6,-17 -11,-18 -13,-22 C -14,-24 -13,-25.5 -11,-25 C -8,-24.3 -5,-23 -3,-24.5 C -2.5,-27 -1,-29 0,-31 C 1,-29 2.5,-27 3,-24.5 C 5,-23 8,-24.3 11,-25 C 13,-25.5 14,-24 13,-22 C 11,-18 6,-17 2,-18 C 3,-17 4.5,-16 4.5,-13 L 0,0 Z";
